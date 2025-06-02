@@ -5,7 +5,6 @@ import {
     fetchComponentFromGitHub,
     generateJSXLayout,
     getComponentProps,
-    launchPlayground,
 } from "./helpers.js";
 
 // Create server instance
@@ -33,19 +32,6 @@ server.tool(
 );
 
 server.tool(
-    "generateJSXLayout",
-    {
-        instruction: z.string().describe("Layout instruction (e.g. 2-column card layout)"),
-    },
-    async ({ instruction }) => {
-        const code = generateJSXLayout(instruction);
-        return {
-            content: [{ type: "text", text: code }]
-        };
-    }
-);
-
-server.tool(
     "getComponentProps",
     {
         componentName: z.string().describe("Component name (e.g. Button)"),
@@ -58,18 +44,6 @@ server.tool(
     }
 );
 
-server.tool(
-    "launchPlayground",
-    {
-        code: z.string().describe("JSX code to preload in the playground"),
-    },
-    async ({ code }) => {
-        const url = launchPlayground(code);
-        return {
-            content: [{ type: "text", text: url }]
-        };
-    }
-);
 
 async function main() {
     const transport = new StdioServerTransport();
