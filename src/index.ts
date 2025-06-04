@@ -18,9 +18,14 @@ const server = new McpServer({
 
 // Correct tool registration
 server.tool(
-    "fetchComponentFromGitHub",
+    "createJSXLayout",
+    `Provides a raw, standalone example of a specific MUI component ( Button, Card, TextField, Grid, Stack).
+It includes default props, prop definitions, and a clean usage snippet.
+Useful as a starting point for creating any custom layout or design.
+Use this tool when the user asks for a base version of a component to extend or modify.`,
     {
-        componentName: z.string().describe("Component name (e.g. Button, CardLayout)"),
+        componentName: z.string().describe("Component name (e.g. Button, CardLayout)."),
+        hint: z.string().optional().describe("create component or layout or design based on a simple instruction."),
     },
     async ({ componentName }, _extra) => {
         const content = await fetchComponentFromGitHub(componentName);
@@ -32,6 +37,7 @@ server.tool(
 
 server.tool(
     "getComponentProps",
+    "This tool provides detailed information about the props, usage, and examples of a specific MUI (Material UI) component. It supports both UI elements like Button, Card, TextField, and layout components like Grid, Stack",
     {
         componentName: z.string().describe("Component name (e.g. Button)"),
     },

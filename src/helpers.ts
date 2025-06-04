@@ -1,5 +1,4 @@
 import axios from "axios";
-import * as ts from "typescript";
 
 const GITHUB_REPO_OWNER = "jaikrishnaverma-dev";
 const GITHUB_REPO_NAME = "mcp-context-server";
@@ -43,93 +42,62 @@ export async function fetchComponentFromGitHub(componentName: string): Promise<R
     return results;
 }
 
-/**
- * Generates a JSX layout snippet based on a simple instruction.
- */
-export function generateJSXLayout(instruction: string): string {
-  // Simple template mapping for demo purposes
-  if (/2[- ]column.*card/i.test(instruction)) {
-    return `import { Grid, Card, CardContent, Typography } from "@mui/material";
 
-export default function TwoColumnCardLayout() {
-  return (
-    <Grid container spacing={2}>
-      <Grid item xs={6}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6">Left Card</Typography>
-            <Typography>Content goes here.</Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={6}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6">Right Card</Typography>
-            <Typography>Content goes here.</Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-    </Grid>
-  );
-}
-`;
-  }
-  // Add more templates as needed
-  return `// No template found for instruction: "${instruction}"`;
-}
 
 /**
  * Parses TypeScript interface for a component and returns prop info.
  */
 export async function getComponentProps(componentName: string): Promise<Record<string, any>> {
-  const srcFiles = await fetchComponentFromGitHub(componentName);
-  // Pick the first file content as the source (or adjust as needed)
-  const src = Object.values(srcFiles)[0] || "";
-  const sourceFile = ts.createSourceFile(
-    `${componentName}.tsx`,
-    src,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX
-  );
-
-  const props: Record<string, any> = {};
-  function visit(node: ts.Node) {
-    if (
-      ts.isInterfaceDeclaration(node) &&
-      /props?/i.test(node.name.text)
-    ) {
-      node.members.forEach((member) => {
-        if (ts.isPropertySignature(member) && member.name) {
-          const name = (member.name as ts.Identifier).text;
-          const type = member.type ? member.type.getText(sourceFile) : "any";
-          let description = "";
-          let defaultValue = undefined;
-          const jsDocs = ts.getJSDocCommentsAndTags(member);
-          if (jsDocs && jsDocs.length > 0) {
-            jsDocs.forEach((doc) => {
-              if (ts.isJSDoc(doc)) {
-                if (doc.comment) {
-                  description = doc.comment.toString();
-                }
-                if (doc.tags) {
-                  doc.tags.forEach((tag) => {
-                    if (tag.tagName.text === "default" && tag.comment) {
-                      defaultValue = tag.comment.toString();
-                    }
-                  });
-                }
-              }
+    const paths = [
+        `mui-design-system-docs/docs/components/${componentName}/props.md`,
+        `mui-design-system-docs/docs/layouts/${componentName}/props.md`
+    ];
+    const results: Record<string, string> = {};
+    for (const path of paths) {
+        const url = `${GITHUB_API_BASE}/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${path}?ref=${GITHUB_BRANCH}`;
+        try {
+            const res = await axios.get(url, {
+                headers: {
+                    "Accept": "application/vnd.github.v3.raw",
+                    "User-Agent": "design-system-mcp",
+                },
+                responseType: "text",
+                validateStatus: () => true,
             });
-          }
-          props[name] = { type, defaultValue, description };
+            // Log the response in color (cyan) and show the response status and data
+       
+            if (res.status === 200 && typeof res.data === "string") {
+                results[path] = res.data;
+            }
+        } catch {
+            // Ignore errors and continue
         }
-      });
     }
-    ts.forEachChild(node, visit);
-  }
-  visit(sourceFile);
-  return props;
+    // Use the first found props.md file
+    const src = Object.values(results)[0] || "";
+    if (!src) return {};
+
+    // Simple Markdown table parser for props.md
+    // Assumes table format: | Name | Type | Default | Description |
+    const lines = src.split("\n").map(line => line.trim());
+    const tableStart = lines.findIndex(line => line.startsWith("|"));
+    if (tableStart === -1) return {};
+
+    const props: Record<string, any> = {};
+    for (let i = tableStart + 2; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.startsWith("|")) break;
+        const cells = line.split("|").map(cell => cell.trim());
+        if (cells.length < 5) continue;
+        const [ , name, type, defaultValue, description ] = cells;
+        if (name) {
+            props[name] = {
+                type,
+                defaultValue: defaultValue || undefined,
+                description: description || ""
+            };
+        }
+    }
+    return props;
 }
 
